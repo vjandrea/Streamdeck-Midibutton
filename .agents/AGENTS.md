@@ -6,8 +6,9 @@ This is the source repo for the Stream Deck MIDI plugin, not just a deployed bun
 
 - Runtime source lives in `Sources/`.
 - The installable plugin bundle lives in `co.uk.clarionmusic.midibutton.sdPlugin/`.
-- The current build system is macOS-only: `Sources/macOS/midibutton.xcodeproj`.
-- The checked-in bundle is also macOS-only today: `co.uk.clarionmusic.midibutton.sdPlugin/manifest.json` has `CodePathMac` and only a macOS `OS` entry.
+- A Windows-oriented `CMakeLists.txt` now exists at repo root for the runtime.
+- The macOS Xcode project still exists at `Sources/macOS/midibutton.xcodeproj`.
+- The plugin manifest now declares both `CodePathMac` and `CodePathWin`.
 
 ## Current Goal
 
@@ -35,12 +36,29 @@ Chosen product decisions:
 
 ## Confirmed Windows-Port Blockers
 
-- There is no Windows build system checked in. Only the Xcode project exists.
-- `Sources/StreamDeckMidiButton.h` includes `CoreServices/CoreServices.h` unconditionally. That must be guarded or removed for Windows compilation.
-- `Sources/macOS/timer.h` is included as `"timer.h"` from the shared runtime. The Xcode project provides that include path implicitly. A Windows build must add the equivalent include path or relocate the header.
-- The property inspector loader in `co.uk.clarionmusic.midibutton.sdPlugin/propertyinspector/index.html` references `pi_win.js`, but that file is not in the repo.
-- The checked-in manifest does not declare `CodePathWin` or a Windows OS target.
-- The runtime references MMC active icons such as `Icons/stop_active.png`, but only inactive MMC icons are currently present in `co.uk.clarionmusic.midibutton.sdPlugin/Icons/`.
+- The Windows runtime has not been built successfully yet on this machine.
+- The current shell does not inherit MSVC environment variables automatically; `cl` works only after launching `VsDevCmd.bat`.
+- No Visual Studio instance/toolchain was available to the agent's plain shell during CMake configure, even though Build Tools are installed on disk.
+- End-to-end Windows verification in Stream Deck has not happened yet.
+
+## Current Windows Foundation Status
+
+Implemented so far:
+
+- Root `CMakeLists.txt` added for a Windows build of `midibutton.exe`.
+- Shared headers were made less dependent on the macOS prefix header:
+  Apple-only `CoreServices` include is now guarded.
+  JSON and `DebugPrint` fallbacks are available from shared headers.
+- `Sources/Common/ESDUtilitiesWindows.cpp` now includes `windows.h`.
+- `co.uk.clarionmusic.midibutton.sdPlugin/propertyinspector/js/pi_win.js` now exists.
+- The Windows property inspector is intentionally output-only:
+  it hides virtual-port settings and MIDI input-port selection.
+- `co.uk.clarionmusic.midibutton.sdPlugin/manifest.json` now includes `CodePathWin` and a Windows `OS` target.
+- Missing MMC `_active` icons were added by duplicating the inactive assets so runtime icon swaps do not fail.
+- The shared runtime now treats Windows as output-first:
+  Windows ignores stale virtual-port and MIDI-input global settings.
+  Windows only initializes MIDI output in `DidReceiveGlobalSettings()`.
+  Windows no longer sends MIDI-input port payloads back to the property inspector.
 
 ## Existing Cross-Platform Assets
 
@@ -52,31 +70,35 @@ Chosen product decisions:
 ## Implementation Plan For The Windows Machine
 
 1. Establish a Windows build target before changing behavior.
-   Create a build system that works on Windows first.
-   Preferred route: add `CMakeLists.txt` for the runtime and support Visual Studio/MSVC.
-   Acceptable route: add a Visual Studio solution/project directly if that is faster.
+   Status: mostly done.
+   `CMakeLists.txt` exists and targets a Windows runtime build.
+   Remaining work is successful configure/build in an MSVC-enabled shell.
 
 2. Make the runtime compile cross-platform.
-   Guard Apple-only includes and code paths.
-   Ensure shared sources can include `timer.h` from a stable cross-platform include path.
-   Keep `ESDUtilitiesMac.cpp` and `ESDUtilitiesWindows.cpp` selected per platform.
+   Status: partially done.
+   Apple-only includes and some Apple-only behavior are now guarded.
+   The timer header still comes from `Sources/macOS/timer.h`, but CMake adds that include path explicitly.
+   Shared code still needs an actual Windows compile pass to catch remaining compiler issues.
 
 3. Ship a Windows runtime with output-only behavior.
-   Prioritize outbound MIDI for Note, Note Toggle, CC, CC Toggle, Program Change, and MMC.
-   Keep existing action UUIDs and settings payload shape unchanged unless compilation forces a minimal compatibility shim.
-   Defer MIDI input-driven state sync if it complicates the first Windows build.
+   Status: in progress.
+   The property inspector and global-settings flow now align with an output-only Windows MVP.
+   Existing action UUIDs remain unchanged.
+   MIDI input-driven sync is still deferred.
 
 4. Make the property inspector honest on Windows.
-   Add `pi_win.js`.
-   Hide or omit unsupported Windows-only deferred controls instead of showing broken options.
-   Specifically review any UI for `useVirtualPort`, MIDI input port selection, and other settings tied to macOS-only behavior.
+   Status: done for MVP.
+   `pi_win.js` exists.
+   Virtual-port and MIDI-input controls are hidden/omitted on Windows.
 
 5. Wire the plugin bundle for Windows.
-   Add `CodePathWin` and Windows `OS` support in the manifest.
-   Keep the macOS bundle working while adding the Windows executable beside it.
+   Status: mostly done.
+   `CodePathWin` and Windows `OS` support are present in the manifest.
+   The remaining step is to place a built `midibutton.exe` beside the bundle contents.
 
 6. Fix asset/runtime mismatches discovered during inspection.
-   Either add the missing MMC active icons or change runtime/icon behavior so it does not reference nonexistent files.
+   Status: done for current runtime behavior.
+   Missing MMC active icons were added as placeholder duplicates of inactive icons.
 
 7. After the Windows build works, do the namespace rename.
    Move from `co.uk.clarionmusic.midibutton.sdPlugin` and `uk.co.clarionmusic.midibutton.*` to the `net.vjandrea.midibutton` namespace in one clean pass.
@@ -103,12 +125,19 @@ Optional but useful:
 
 ## Verification Checklist
 
-- Runtime builds successfully on Windows.
+- Runtime configures and builds successfully on Windows in an MSVC-enabled shell.
+- `midibutton.exe` is copied into `co.uk.clarionmusic.midibutton.sdPlugin/`.
 - Plugin bundle installs in Stream Deck on Windows.
 - Each action can be added and opened in the property inspector without JS errors.
 - Outbound MIDI works for Note, Note Toggle, CC, CC Toggle, Program Change, and MMC.
 - Unsupported controls are hidden or clearly unavailable on Windows.
 - macOS manifest/runtime wiring remains intact after Windows support is added.
+
+## Immediate Next Step
+
+- Run CMake and the build from a shell bootstrapped with:
+  `C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\Common7\Tools\VsDevCmd.bat`
+- Once a compile succeeds, fix the remaining compiler errors iteratively instead of broad refactors.
 
 ## Working Guidance
 

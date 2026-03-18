@@ -430,15 +430,19 @@ void StreamDeckMidiButton::DidReceiveGlobalSettings(const json& inPayload)
             }
         }
     }
-    //see if the virtual port flag has been set
+    // Virtual ports remain a macOS-only feature for the Windows MVP.
     if (inPayload["settings"].find("useVirtualPort") != inPayload["settings"].end())
     {
+#if defined(__APPLE__)
         if (mGlobalSettings->useVirtualPort != inPayload["settings"]["useVirtualPort"])//useVirtualPort flag has changed
         {
             Message("void MidiButton::DidReceiveGlobalSettings(): useVirtualPort has changed");
             mGlobalSettings->useVirtualPort = inPayload["settings"]["useVirtualPort"];//update the useVirtualPort flag
             midiSettingsChanged = true;
         }
+#else
+        mGlobalSettings->useVirtualPort = false;
+#endif
     }
     //get the portName, if that's been set
     if (inPayload["settings"].find("portName") != inPayload["settings"].end())
@@ -463,12 +467,14 @@ void StreamDeckMidiButton::DidReceiveGlobalSettings(const json& inPayload)
     }
     if (inPayload["settings"].find("selectedInPortIndex") != inPayload["settings"].end())
     {
+#if defined(__APPLE__)
         if (mGlobalSettings->selectedInPortIndex != inPayload["settings"]["selectedInPortIndex"])
         {
             Message("void MidiButton::DidReceiveGlobalSettings(): selectedInPortIndex has changed");
             mGlobalSettings->selectedInPortIndex = inPayload["settings"]["selectedInPortIndex"];
             midiSettingsChanged = true;
         }
+#endif
     }
     //get the selectedPortNames, if set
     if (inPayload["settings"].find("selectedOutPortName") != inPayload["settings"].end())
@@ -483,6 +489,7 @@ void StreamDeckMidiButton::DidReceiveGlobalSettings(const json& inPayload)
     }
     if (inPayload["settings"].find("selectedInPortName") != inPayload["settings"].end())
     {
+#if defined(__APPLE__)
         std::string selectedInPortName = mGlobalSettings->selectedInPortName;
         if (selectedInPortName.compare(inPayload["settings"]["selectedInPortName"]) != 0)//portName has changed
         {
@@ -490,6 +497,7 @@ void StreamDeckMidiButton::DidReceiveGlobalSettings(const json& inPayload)
             mGlobalSettings->selectedInPortName = inPayload["settings"]["selectedInPortName"];
             midiSettingsChanged = true;
         }
+#endif
     }
 
     if (!midiSettingsChanged)
@@ -524,8 +532,9 @@ void StreamDeckMidiButton::DidReceiveGlobalSettings(const json& inPayload)
         else if (!mGlobalSettings->useVirtualPort)
         {
             DebugMessage("void MidiButton::DidReceiveGlobalSettings(): opening the physical OUTPUT port with index " + std::to_string(mGlobalSettings->selectedOutPortIndex) + " & port name " + midiOut->get_port_name(mGlobalSettings->selectedOutPortIndex));
-            DebugMessage("void MidiButton::DidReceiveGlobalSettings(): opening the physical INPUT port with index " + std::to_string(mGlobalSettings->selectedInPortIndex) + " & port name " + midiOut->get_port_name(mGlobalSettings->selectedInPortIndex));
-            
+#if defined(__APPLE__)
+            DebugMessage("void MidiButton::DidReceiveGlobalSettings(): opening the physical INPUT port with index " + std::to_string(mGlobalSettings->selectedInPortIndex) + " & port name " + midiIn->get_port_name(mGlobalSettings->selectedInPortIndex));
+
             if (InitialiseMidi(Direction::IN))
             {
                 Message("void MidiButton::DidReceiveGlobalSettings(): MIDI input initialised successfully");
@@ -535,6 +544,7 @@ void StreamDeckMidiButton::DidReceiveGlobalSettings(const json& inPayload)
                 Message("void MidiButton::DidReceiveGlobalSettings(): something went wrong initialising MIDI input");
                 return;
             }
+#endif
             if (InitialiseMidi(Direction::OUT))
             {
                 Message("void MidiButton::DidReceiveGlobalSettings(): MIDI output initialised successfully");
@@ -1169,13 +1179,15 @@ void StreamDeckMidiButton::SendToPlugin(const std::string& inAction, const std::
         
         DebugMessage("void MidiButton::SendToPlugin(): selected MIDI OUT port - " + json({{"event", "midiOutPortSelected"},{"midiOutPortSelected", mGlobalSettings->selectedOutPortIndex}}).dump());
         mConnectionManager->SendToPropertyInspector(inAction, inContext,json({{"event", "midiOutPortSelected"},{"midiOutPortSelected", mGlobalSettings->selectedOutPortIndex}}));
-        
+
+#if defined(__APPLE__)
         midiPortList = GetMidiPortList(Direction::IN);
         DebugMessage("void MidiButton::SendToPlugin(): get list of MIDI IN ports - " + json({{"event", "midiInPorts"},{"midiInPortList", midiPortList}}).dump());
         mConnectionManager->SendToPropertyInspector(inAction, inContext,json({{"event", "midiInPorts"},{"midiInPortList", midiPortList}}));
         
         DebugMessage(json({{"event", "midiInPortSelected"},{"midiInPortSelected", mGlobalSettings->selectedInPortIndex}}).dump().c_str());
         mConnectionManager->SendToPropertyInspector(inAction, inContext,json({{"event", "midiInPortSelected"},{"midiInPortSelected", mGlobalSettings->selectedInPortIndex}}));
+#endif
         return;
     }
     //else something's gone wrong

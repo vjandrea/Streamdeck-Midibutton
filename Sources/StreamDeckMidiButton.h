@@ -13,13 +13,21 @@
 //==============================================================================
 
 #include "Common/ESDBasePlugin.h"
+#include "Common/EPLJSONUtils.h"
 //#include "RtMidi.h"
 #include <rtmidi17.hpp>
 #include "base64.h"
 #include "timer.h" //written by Martin Vorbrodt - https://vorbrodt.blog/
 #include <mutex>
 #include <fstream>
+
+#if defined(__APPLE__)
 #include <CoreServices/CoreServices.h>
+#endif
+
+#ifndef DebugPrint
+#define DebugPrint(...) do {} while(0)
+#endif
 
 #define DEFAULT_PORT_NAME "Streamdeck MIDI"
 

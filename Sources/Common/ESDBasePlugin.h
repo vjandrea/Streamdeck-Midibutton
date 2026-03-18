@@ -13,6 +13,9 @@ LICENSE file.
 
 #pragma once
 
+#include "EPLJSONUtils.h"
+#include <string>
+
 class ESDConnectionManager;
 
 class ESDBasePlugin {
@@ -78,3 +81,7 @@ class ESDBasePlugin {
  protected:
   ESDConnectionManager* mConnectionManager = nullptr;
 };
+
+#ifndef DebugPrint
+#define DebugPrint(...) do {} while(0)
+#endif

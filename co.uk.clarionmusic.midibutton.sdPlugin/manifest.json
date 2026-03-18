@@ -105,6 +105,7 @@
     "Category": "Midi Button",
     "CategoryIcon": "category-midibutton",
     "CodePathMac": "midibutton",
+    "CodePathWin": "midibutton.exe",
     "Description": "Button to send Midi events",
     "Name": "Midi Button",
     "Icon": "midibuttonnote",
@@ -114,6 +115,10 @@
         {
             "Platform": "mac",
             "MinimumVersion": "10.11"
+        },
+        {
+            "Platform": "windows",
+            "MinimumVersion": "10"
         }
     ],
     "Software": {

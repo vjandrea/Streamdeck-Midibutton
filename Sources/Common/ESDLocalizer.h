@@ -12,6 +12,9 @@
 
 #pragma once
 
+#include "EPLJSONUtils.h"
+#include <string>
+
 class ESDLocalizer
 {
 public:

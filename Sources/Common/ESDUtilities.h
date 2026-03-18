@@ -12,6 +12,12 @@
 
 #pragma once
 
+#include <string>
+
+#ifndef DebugPrint
+#define DebugPrint(...) do {} while(0)
+#endif
+
 
 class ESDUtilities
 {

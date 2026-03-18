@@ -18,6 +18,7 @@
 //------------------------------------------------------------------------------
 
 #include "../Vendor/json/src/json.hpp"
+#include <string>
 using json = nlohmann::json;
 
 class EPLJSONUtils
